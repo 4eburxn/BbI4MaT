@@ -3,7 +3,7 @@ project(first_example)
 
 include(FetchContent)
 
-
+set(XTENSOR_USE_XSIMD 1)
 # Use FetchContent
 # # Download and configure xtl
 FetchContent_Declare(xtl
@@ -31,6 +31,9 @@ FetchContent_MakeAvailable(xtl xsimd xtensor-blas xtensor)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
+find_package(xtl REQUIRED)
+find_package(xtensor REQUIRED)
+add_compile_options(-march=native -mtune=native -flto)
 add_executable(first_example main.cpp)
 
 target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
