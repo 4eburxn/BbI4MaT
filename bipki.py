@@ -3,8 +3,8 @@ import time
 
 # Простая версия для быстрого замера
 np.random.seed(42)
-A = np.random.rand(1000, 1000) + np.eye(1000) * 1000
-b = np.random.rand(1000)
+A = np.random.rand(10000, 10000) + np.eye(10000) * 1000
+b = np.random.rand(10000)
 
 print("Замер времени решения СЛАУ 1000x1000...")
 start = time.time()
