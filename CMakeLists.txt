@@ -1,24 +1,25 @@
 cmake_minimum_required(VERSION 3.20)
 project(first_example)
 
-include(FetchContent)
-
+set(XTENSOR_USE_OPENMP 1)
 set(XTENSOR_USE_XSIMD 1)
+set(XTENSOR_DISABLE_EXCEPTIONS 1)
+include(FetchContent)
 # Use FetchContent
 # # Download and configure xtl
 FetchContent_Declare(xtl
     GIT_REPOSITORY https://github.com/xtensor-stack/xtl.git
-    GIT_TAG master
+    GIT_TAG 0.8.0
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xsimd
     GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
-    GIT_TAG master
+    GIT_TAG 13.2.0
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xtensor
     GIT_REPOSITORY https://github.com/xtensor-stack/xtensor.git
-    GIT_TAG master
+    GIT_TAG 0.27.1
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xtensor-blas
@@ -33,7 +34,7 @@ find_package(LAPACK REQUIRED)
 
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
-add_compile_options(-march=native -mtune=native -flto)
+add_compile_options(-march=native -mtune=native -Ofast)
 add_executable(first_example main.cpp)
 
 target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
