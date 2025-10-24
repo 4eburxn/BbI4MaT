@@ -1,11 +1,10 @@
 #ifndef __SOLVER_HPP__
 #define __SOLVER_HPP__
-#include "xtensor/core/xmath.hpp"
 #include "xtensor/core/xtensor_forward.hpp"
+#include "xtensor/generators/xbuilder.hpp"
 #include "xtensor/misc/xmanipulation.hpp"
 #include "xtensor/views/xslice.hpp"
 #include <cmath>
-#include <iostream>
 #include <omp.h>
 #include <xtensor-blas/xlinalg.hpp>
 #include <xtensor/containers/xarray.hpp>
@@ -14,11 +13,11 @@
 #include <xtensor/views/xview.hpp>
 
 enum SolverType {
-  Default,
-  UnorderedGauss,
-  Gauss,
-  Orthogonalization,
-  tridiagonal
+  Default = 0,
+  UnorderedGauss = 1,
+  Gauss = 2,
+  Orthogonalization = 3,
+  tridiagonal = 4
 };
 
 template <class T>
@@ -43,7 +42,7 @@ inline xt::xarray<T> unordered_gauss_solver(xt::xarray<T> tensor) {
       vv -= (tensor(j, i)) * v;
     }
   }
-  return tensor;
+  return xt::view(tensor, xt::all(), n);
 }
 
 template <class T> inline xt::xarray<T> gauss_solver(xt::xarray<T> tensor) {
@@ -79,7 +78,7 @@ template <class T> inline xt::xarray<T> gauss_solver(xt::xarray<T> tensor) {
       vv -= (tensor(j, i)) * v;
     }
   }
-  return tensor;
+  return xt::view(tensor, xt::all(), n);
 }
 
 template <class T>
@@ -113,7 +112,7 @@ lu_decomposition(const xt::xarray<T> &A) {
 }
 
 template <class T>
-inline xt::xarray<T> solver(xt::xarray<T> tensor, xt::xarray<T> b) {
+inline xt::xarray<T> solver_lu_based(xt::xarray<T> tensor, xt::xarray<T> b) {
   using namespace xt;
   using namespace xt::placeholders;
   size_t n = tensor.shape()[0];
@@ -142,8 +141,6 @@ inline xt::xarray<T> solver(xt::xarray<T> tensor, xt::xarray<T> b) {
 
   for (int i = 0; i != n - 1; i++) {
     b(i) /= L(i, i);
-    // auto V = xt::view(b, xt::range(i + 1, n - 1));
-    // V -= V * view(L, xt::range(i + 1, n - 1), i);
     for (int j = i + 1; j < n; j++) {
       b(j) -= b(i) * (L(j, i));
     }
@@ -155,6 +152,26 @@ inline xt::xarray<T> solver(xt::xarray<T> tensor, xt::xarray<T> b) {
     }
   }
   return b;
+}
+
+template <class T>
+inline xt::xarray<T> solver(xt::xarray<T> tensor, xt::xarray<T> b,
+                            SolverType Type = SolverType::Default) {
+  xt::xarray<T> A = xt::zeros<T>({tensor.shape()[0], tensor.shape()[0] + 1});
+  switch (Type) {
+  case SolverType::Default:
+    return solver_lu_based(tensor, b);
+  case SolverType::UnorderedGauss:
+    xt::view(A, xt::all(), xt::range(xt::placeholders::_, tensor.shape()[0])) =
+        tensor;
+    xt::view(A, xt::all(), tensor.shape()[0]) = b;
+    return unordered_gauss_solver(A);
+  case SolverType::Gauss:
+    xt::view(A, xt::all(), xt::range(xt::placeholders::_, tensor.shape()[0])) =
+        tensor;
+    xt::view(A, xt::all(), tensor.shape()[0]) = b;
+    return gauss_solver(A);
+  }
 }
 
 #endif // __SOLVER_HPP__

@@ -1,45 +1,42 @@
 // #define XTENSOR_USE_XSIMD 1
 // #define XTENSOR_USE_OPENMP 1
+#include "lib/itersolver.hpp"
 #include "lib/norm.hpp"
 #include "lib/solver.hpp"
-#include "xtensor-blas/xlinalg.hpp"
-#include "xtensor/core/xmath.hpp"
-#include "xtensor/core/xtensor_forward.hpp"
-#include "xtensor/misc/xmanipulation.hpp"
-#include "xtensor/views/xstrided_view.hpp"
+#include "lib/tools.hpp"
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <semaphore>
 #include <xtensor/containers/xarray.hpp>
 #include <xtensor/generators/xrandom.hpp>
 #include <xtensor/io/xio.hpp>
 #include <xtensor/views/xview.hpp>
 int main(int argc, char *argv[]) {
-  using namespace xt::placeholders;
-  xt::xarray<double> arr1{
-      {1.0, -3.0, 2.0, 1.}, {4.0, 5.0, -1.0, 2.}, {3.0, 8.0, -6.0, 3.}};
-  xt::random::seed(227);
-  xt::xarray<double> m = xt::random::randn<double>({2000, 2000});
-  xt::xarray<double> b = xt::random::randn<double>({2000});
-  // xt::xarray<double> arr1{
-  //     {1.0, 0, 0, 1.}, {4.0, 5.0, 0, 2.}, {3.0, 8.0, -6.0, 3.}};
 
-  xt::xarray<double> arr2{1, 2, 3};
-  xt::xarray<double> arr3{4, 5, 6};
+  auto a = read_from_stdin<double>();
+  auto N = a.second.shape()[0];
+  xt::xarray<double> A = xt::zeros<double>({N, N + 1});
+  xt::view(A, xt::all(), xt::range(xt::placeholders::_, N)) = a.first;
+  xt::view(A, xt::all(), N) = a.second;
 
-  // xt::xarray<double> res = xt::view(arr1, 1) + arr2;
-
-  std::cout << xt::linalg::vdot(xt::view(arr2, xt::all()), arr3) << std::endl;
-  std::cout << arr1 << std::endl;
-  std::cout << solver(arr1, arr2) << std::endl;
-  auto LU = lu_decomposition(arr1);
-  std::cout << LU.first << "\n" << LU.second << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
-  // auto p = lu_decomposition(m);
-  auto p = solver(m, b);
+  auto p = unordered_gauss_solver(A);
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> elapsed = finish - start;
-  std::cout << "Elapsed Time: " << elapsed.count() << " milseconds"
+  std::cout << "Ugaus " << a.second.shape()[0] << " " << elapsed.count()
+            << std::endl;
+  start = std::chrono::high_resolution_clock::now();
+  auto pp = gauss_solver(A);
+  finish = std::chrono::high_resolution_clock::now();
+  elapsed = finish - start;
+  std::cout << "Gaus " << a.second.shape()[0] << " " << elapsed.count()
+            << std::endl;
+  start = std::chrono::high_resolution_clock::now();
+  auto ppp = solver_lu_based(a.first, a.second);
+  finish = std::chrono::high_resolution_clock::now();
+  elapsed = finish - start;
+  std::cout << "LU " << a.second.shape()[0] << " " << elapsed.count()
             << std::endl;
   return 0;
 }

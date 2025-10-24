@@ -9,17 +9,17 @@ include(FetchContent)
 # # Download and configure xtl
 FetchContent_Declare(xtl
     GIT_REPOSITORY https://github.com/xtensor-stack/xtl.git
-    GIT_TAG 0.8.0
+    GIT_TAG master
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xsimd
     GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
-    GIT_TAG 13.2.0
+    GIT_TAG master
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xtensor
     GIT_REPOSITORY https://github.com/xtensor-stack/xtensor.git
-    GIT_TAG 0.27.1
+    GIT_TAG master
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(xtensor-blas
@@ -34,7 +34,7 @@ find_package(LAPACK REQUIRED)
 
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
-add_compile_options(-march=native -mtune=native -Ofast)
+add_compile_options(-march=native -mtune=native -fprofile-use -flto)
 add_executable(first_example main.cpp)
 
-target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} gcov)
