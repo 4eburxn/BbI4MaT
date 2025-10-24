@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+numpy.random.seed(33991232) # funny seed
 
 def main():
     
