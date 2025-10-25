@@ -4,6 +4,7 @@
 #include "lib/norm.hpp"
 #include "lib/solver.hpp"
 #include "lib/tools.hpp"
+#include "xtensor-blas/xlinalg.hpp"
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -37,6 +38,12 @@ int main(int argc, char *argv[]) {
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
   std::cout << "LU " << a.second.shape()[0] << " " << elapsed.count()
+            << std::endl;
+  start = std::chrono::high_resolution_clock::now();
+  auto pppp = xt::linalg::solve(a.first, a.second);
+  finish = std::chrono::high_resolution_clock::now();
+  elapsed = finish - start;
+  std::cout << "XT::BLAS " << a.second.shape()[0] << " " << elapsed.count()
             << std::endl;
   return 0;
 }

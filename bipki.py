@@ -1,3 +1,5 @@
+#!/bin/python3.13
+
 import numpy as np
 import time
 

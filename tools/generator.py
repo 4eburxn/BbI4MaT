@@ -1,3 +1,5 @@
+#/bin/python3.14
+
 import sys
 import numpy as np
 
