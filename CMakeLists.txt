@@ -34,7 +34,7 @@ find_package(LAPACK REQUIRED)
 
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
-add_compile_options(-march=native -mtune=native -fprofile-use -flto)
+add_compile_options(-march=native -mtune=native -flto)
 add_executable(first_example main.cpp)
 
 target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} gcov)
