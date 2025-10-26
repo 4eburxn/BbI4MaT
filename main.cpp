@@ -15,7 +15,7 @@
 #include <xtensor/views/xslice.hpp>
 #include <xtensor/views/xview.hpp>
 int main(int argc, char *argv[]) {
-  for (int i = 5000; i < 10000; i += 100) {
+  for (int i = 3; i < 10100; i += 100) {
     xt::xarray<double> rnd = xt::random::randn<double>({i * 3 + 1});
     xt::xarray<double> mtr = xt::zeros<double>({i, i + 1});
     mtr(0, 0) = rnd(0);
