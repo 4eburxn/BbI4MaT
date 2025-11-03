@@ -1,4 +1,3 @@
-
 #ifndef __ITERSOLVER_HPP__
 #define __ITERSOLVER_HPP__
 #include "xtensor/core/xtensor_forward.hpp"
@@ -30,6 +29,135 @@ inline xt::xarray<T> fixed_point_solver(xt::xarray<T> &tensor, xt::xarray<T> &f,
     f0 = xt::linalg::dot(B, f0) + C;
   }
   return -f0;
+}
+
+// Реализация метода Якоби
+template <class T, int N = 10000>
+inline xt::xarray<T> jacobi_solver(xt::xarray<T> &A, xt::xarray<T> &b,
+                                   xt::xarray<T> &x0, T tolerance = 1e-6,
+                                   int max_iterations = 1000) {
+  int n = A.shape()[0];
+  xt::xarray<T> x = x0;
+  xt::xarray<T> x_new = xt::zeros_like(x0);
+
+  for (int iter = 0; iter < max_iterations; ++iter) {
+    for (int i = 0; i < n; ++i) {
+      T sum = 0.0;
+      for (int j = 0; j < n; ++j) {
+        if (j != i) {
+          sum += A(i, j) * x(j);
+        }
+      }
+      x_new(i) = (b(i) - sum) / A(i, i);
+    }
+
+    T error = xt::linalg::norm(x_new - x);
+    if (error < tolerance) {
+      return x_new;
+    }
+
+    x = x_new;
+  }
+
+  return x_new;
+}
+
+template <class T>
+inline xt::xarray<T> seidel_solver(xt::xarray<T> &A, xt::xarray<T> &b,
+                                   xt::xarray<T> &x0, T tolerance = 1e-6,
+                                   int max_iterations = 1000) {
+  int n = A.shape()[0];
+  xt::xarray<T> x = x0;
+  xt::xarray<T> x_old = x0;
+
+  for (int iter = 0; iter < max_iterations; ++iter) {
+    x_old = x;
+
+    for (int i = 0; i < n; ++i) {
+      T sum = 0.0;
+
+      for (int j = 0; j < i; ++j) {
+        sum += A(i, j) * x(j);
+      }
+
+      for (int j = i + 1; j < n; ++j) {
+        sum += A(i, j) * x_old(j);
+      }
+
+      x(i) = (b(i) - sum) / A(i, i);
+    }
+
+    T error = xt::linalg::norm(x - x_old);
+    if (error < tolerance) {
+      return x;
+    }
+  }
+
+  return x;
+}
+
+template <class T>
+inline xt::xarray<T> minres_solver(xt::xarray<T> &A, xt::xarray<T> &b,
+                                   xt::xarray<T> &x0, T tolerance = 1e-6,
+                                   int max_iterations = 1000) {
+  int n = A.shape()[0];
+  xt::xarray<T> x = x0;
+
+  xt::xarray<T> r = b - xt::linalg::dot(A, x);
+  T norm_r = xt::linalg::norm(r);
+  T norm_b = xt::linalg::norm(b);
+
+  if (norm_b < tolerance) {
+    norm_b = 1.0;
+  }
+
+  xt::xarray<T> v_old = xt::zeros_like(b);
+  xt::xarray<T> v = r / norm_r;
+  xt::xarray<T> w_old = xt::zeros_like(b);
+  xt::xarray<T> w = v;
+
+  T beta = norm_r;
+  T beta_old = 0.0;
+  T c_old = 1.0;
+  T c = 1.0;
+  T s_old = 0.0;
+  T s = 0.0;
+  T eta = norm_r;
+
+  for (int iter = 0; iter < max_iterations; ++iter) {
+    xt::xarray<T> v_new = xt::linalg::dot(A, v);
+    T alpha = xt::linalg::dot(v, v_new)(0);
+    v_new = v_new - alpha * v - beta_old * v_old;
+    T beta_new = xt::linalg::norm(v_new);
+
+    T rho0 = c * alpha - c_old * s * beta;
+    T rho1 = std::sqrt(rho0 * rho0 + beta_new * beta_new);
+    T rho2 = s * alpha + c_old * c * beta;
+    T rho3 = s_old * beta;
+
+    c_old = c;
+    s_old = s;
+    c = rho0 / rho1;
+    s = beta_new / rho1;
+
+    xt::xarray<T> w_new = (v - rho2 * w - rho3 * w_old) / rho1;
+    x = x + c * eta * w_new;
+    eta = -s * eta;
+
+    T relative_error = std::abs(eta) / norm_b;
+    if (relative_error < tolerance) {
+      return x;
+    }
+
+    v_old = v;
+    v = v_new / beta_new;
+    w_old = w;
+    w = w_new;
+    beta_old = beta;
+    beta = beta_new;
+  }
+
+  return x;
 }
 
 #endif // __ITERSOLVER_HPP__

@@ -1,4 +1,4 @@
-#!/bin/python3.13
+#!/usr/bin/python
 
 import numpy as np
 import time
@@ -23,4 +23,4 @@ start = time.time()
 x = np.linalg.solve(A, b)
 end = time.time()
 
-print("py",N,(end - start)*1000)
+print("py",N,(end - start)*1000,np.sum(np.abs(A@x)-b))

@@ -18,13 +18,13 @@ template <double N, class T> auto normV(xt::xarray<T> tensor) {
 }
 template <int N, class T> auto normV(xt::xarray<T> tensor) {
   using namespace xt;
-  static_assert(N > 0 || N == -1, "normM: norm must be > 0 OR -1");
+  static_assert(N < 0 || N != -1, "normM: norm must be > 0 OR -1");
 
   if constexpr (N == 1)
-    return sum(abs(tensor));
+    return xt::sum(xt::abs(tensor));
   if constexpr (N == -1)
     return amax(tensor);
-  return pow(sum(pow(abs(tensor), (double)N)), 1 / (double)N);
+  // return pow(sum(pow(abs(tensor), (double)N)), 1 / (double)N);
 }
 
 template <int N, class T> auto normM(xt::xarray<T> tensor) {

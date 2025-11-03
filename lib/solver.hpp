@@ -29,9 +29,10 @@ inline xt::xarray<T> unordered_gauss_solver(xt::xarray<T> tensor) {
   for (int i = 0; i != n - 1; i++) {
     auto view_ = xt::range(i, _);
     auto v = xt::view(tensor, i, view_);
+    v = v / tensor(i, i);
     for (int j = i + 1; j < n; j++) {
       auto vv = xt::view(tensor, j, view_);
-      vv -= (tensor(j, i) / tensor(i, i)) * v;
+      vv -= (tensor(j, i)) * v;
     }
   }
   for (int i = n - 1; i != 0; i--) {
@@ -65,9 +66,10 @@ template <class T> inline xt::xarray<T> gauss_solver(xt::xarray<T> tensor) {
     xt::view(tensor, mxi) = tmp;
     auto view_ = xt::range(i, _);
     auto v = xt::view(tensor, i, view_);
+    v = v / tensor(i, i);
     for (int j = i + 1; j < n; j++) {
       auto vv = xt::view(tensor, j, view_);
-      vv -= (tensor(j, i) / tensor(i, i)) * v;
+      vv -= (tensor(j, i)) * v;
     }
   }
   for (int i = n - 1; i != 0; i--) {
@@ -120,6 +122,7 @@ inline xt::xarray<T> solver_lu_based(xt::xarray<T> tensor, xt::xarray<T> b) {
   xt::xarray<T> L = eye<T>({n, n});
   xt::xarray<T> U = zeros<T>({n, n});
 
+  // LU-разложение (без изменений)
   for (size_t i = 0; i < n; ++i) {
     auto ppp = range(_, i);
     auto L_i = view(L, i, ppp);
@@ -140,18 +143,21 @@ inline xt::xarray<T> solver_lu_based(xt::xarray<T> tensor, xt::xarray<T> b) {
     }
   }
 
-  for (int i = 0; i != n - 1; i++) {
-    b(i) /= L(i, i);
-    for (int j = i + 1; j < n; j++) {
-      b(j) -= b(i) * (L(j, i));
+  // Прямой ход: Ly = b (L с единичной диагональю)
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = i + 1; j < n; ++j) {
+      b(j) -= b(i) * L(j, i); // L(i, i) = 1, деление не нужно
     }
   }
-  for (int i = n - 1; i != 0; i--) {
-    b(i) /= U(i, i);
-    for (int j = i - 1; j >= 0; j--) {
-      b(j) -= b(i) * (U(j, i));
+
+  // Обратный ход: Ux = y
+  for (size_t i = n; i > 0; --i) {
+    b(i - 1) /= U(i - 1, i - 1);
+    for (size_t j = 0; j < i - 1; ++j) {
+      b(j) -= b(i - 1) * U(j, i - 1);
     }
   }
+
   return b;
 }
 
@@ -205,11 +211,11 @@ inline xt::xarray<T> tridiagonal_solver(xt::xarray<T> tensor) {
     tensor(i + 1, i + 1) -= tmp * tensor(i, i + 1);
   }
   for (int i = n - 1; i > 0; i--) {
-    auto tmp = (tensor(i - 1, i - 1) / tensor(i, i - 1));
+    auto tmp = tensor(i - 1, i) / tensor(i, i);
     b(i - 1) -= b(i) * tmp;
-    tensor(i - 1, i - 1) -= tmp * tensor(i, i - 1);
     b(i) /= tensor(i, i);
   }
+  b(0) /= tensor(0, 0);
 
   return xt::view(tensor, xt::all(), n);
 }
