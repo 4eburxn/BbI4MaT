@@ -1,4 +1,5 @@
 #include "lib/itersolver.hpp"
+#include "lib/nlsolver.hpp"
 #include "lib/norm.hpp"
 #include "lib/solver.hpp"
 #include "lib/tools.hpp"
@@ -16,8 +17,45 @@
 #include <xtensor/io/xio.hpp>
 #include <xtensor/views/xslice.hpp>
 #include <xtensor/views/xview.hpp>
+
+namespace bm = boost::math::differentiation;
+template <typename T> T quadratic_function(T x) { return x * x - 4.0; }
+template <typename T> T cubic_function(T x) {
+  return x * x * x - 2.0 * x - 5.0;
+}
+template <typename T> T cos_function(T x) { return cos(x) - x; }
+
 int main(int argc, char *argv[]) {
 
+  return 0;
+#if 1
+  std::cout << "\n1. Решение уравнения x^2 - 4 = 0:" << std::endl;
+  double root1 = newton_method_autodiff(
+      quadratic_function<decltype(bm::make_fvar<double, 1>(0))>, 3.0);
+  std::cout << "Найденный корень: " << root1 << std::endl;
+
+  std::cout << "\n2. Решение уравнения x^3 - 2x - 5 = 0:" << std::endl;
+  double root2 = newton_method_autodiff(
+      cubic_function<decltype(bm::make_fvar<double, 1>(0))>, 2.0);
+  std::cout << "Найденный корень: " << root2 << std::endl;
+
+  std::cout << "\n3. Решение уравнения cos(x) - x = 0:" << std::endl;
+  double root3 = newton_method_autodiff(
+      cos_function<decltype(bm::make_fvar<double, 1>(0))>, 1.0);
+  std::cout << "Найденный корень: " << root3 << std::endl;
+
+  return 0;
+
+  for (int dim = 3; dim <= 1000; dim += 30) {
+    run_benchmarks(dim);
+  }
+  for (int dim = 1000; dim <= 10000; dim += 500) {
+    run_benchmarks(dim);
+  }
+  return 0;
+#endif
+
+#if 0
   auto a = read_from_stdin<double>();
   auto N = a.second.shape()[0];
   xt::xarray<double> A = xt::zeros<double>({N, N + 1});
@@ -83,6 +121,7 @@ int main(int argc, char *argv[]) {
                                 xt::view(mtr, xt::all(), xt::range(0, i))),
                             p, xt::xarray<double>(xt::view(mtr, xt::all(), i))))
             << std::endl;
+#endif
 
   return 0;
 }

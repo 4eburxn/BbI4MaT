@@ -29,6 +29,7 @@ FetchContent_Declare(xtensor-blas
 )
 FetchContent_MakeAvailable(xtl xsimd xtensor-blas xtensor)
 
+find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
@@ -37,4 +38,4 @@ find_package(xtensor REQUIRED)
 add_compile_options(-march=native -mtune=native -flto)
 add_executable(first_example main.cpp)
 
-target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} gcov)
+target_link_libraries(first_example PUBLIC xtensor xtensor-blas ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} gcov Boost::system Boost::filesystem)

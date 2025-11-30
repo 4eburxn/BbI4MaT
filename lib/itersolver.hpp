@@ -2,9 +2,7 @@
 #define __ITERSOLVER_HPP__
 #include "xtensor/core/xtensor_forward.hpp"
 #include "xtensor/generators/xbuilder.hpp"
-#include "xtensor/views/xslice.hpp"
 #include <cmath>
-#include <iostream>
 #include <omp.h>
 #include <xtensor-blas/xlinalg.hpp>
 #include <xtensor/containers/xarray.hpp>
@@ -22,25 +20,23 @@ inline xt::xarray<T> fixed_point_solver(xt::xarray<T> &tensor, xt::xarray<T> &f,
   auto B = xt::linalg::dot(P, tensor) +
            xt::eye({tensor.shape()[0], tensor.shape()[0]});
   auto C = xt::linalg::dot(f, P);
-  std::cout << B << "\n" << C << std::endl;
 
   int n = N;
   while (n--) {
-    f0 = xt::linalg::dot(B, f0) + C;
+    f0 = xt::linalg::dot(B, f0) - C;
   }
-  return -f0;
+  return f0;
 }
 
 // Реализация метода Якоби
 template <class T, int N = 10000>
 inline xt::xarray<T> jacobi_solver(xt::xarray<T> &A, xt::xarray<T> &b,
-                                   xt::xarray<T> &x0, T tolerance = 1e-6,
-                                   int max_iterations = 1000) {
+                                   xt::xarray<T> &x0, T tolerance = 1e-6) {
   int n = A.shape()[0];
   xt::xarray<T> x = x0;
   xt::xarray<T> x_new = xt::zeros_like(x0);
 
-  for (int iter = 0; iter < max_iterations; ++iter) {
+  for (int iter = 0; iter < N; ++iter) {
     for (int i = 0; i < n; ++i) {
       T sum = 0.0;
       for (int j = 0; j < n; ++j) {
@@ -97,8 +93,9 @@ inline xt::xarray<T> seidel_solver(xt::xarray<T> &A, xt::xarray<T> &b,
 }
 
 template <class T>
-inline xt::xarray<T> minres_solver(xt::xarray<T> &A, xt::xarray<T> &b,
-                                   xt::xarray<T> &x0, T tolerance = 1e-6,
+inline xt::xarray<T> minres_solver(const xt::xarray<T> &A,
+                                   const xt::xarray<T> &b,
+                                   const xt::xarray<T> &x0, T tolerance = 1e-6,
                                    int max_iterations = 1000) {
   int n = A.shape()[0];
   xt::xarray<T> x = x0;
@@ -111,37 +108,67 @@ inline xt::xarray<T> minres_solver(xt::xarray<T> &A, xt::xarray<T> &b,
     norm_b = 1.0;
   }
 
+  if (norm_r < tolerance * norm_b) {
+    return x;
+  }
+
   xt::xarray<T> v_old = xt::zeros_like(b);
   xt::xarray<T> v = r / norm_r;
+  xt::xarray<T> w = xt::zeros_like(b);
   xt::xarray<T> w_old = xt::zeros_like(b);
-  xt::xarray<T> w = v;
 
   T beta = norm_r;
   T beta_old = 0.0;
-  T c_old = 1.0;
+  T beta_new = 0.0;
+
   T c = 1.0;
-  T s_old = 0.0;
+  T c_old = 1.0;
   T s = 0.0;
+  T s_old = 0.0;
+
   T eta = norm_r;
 
-  for (int iter = 0; iter < max_iterations; ++iter) {
-    xt::xarray<T> v_new = xt::linalg::dot(A, v);
-    T alpha = xt::linalg::dot(v, v_new)(0);
-    v_new = v_new - alpha * v - beta_old * v_old;
-    T beta_new = xt::linalg::norm(v_new);
+  xt::xarray<T> Av;
 
-    T rho0 = c * alpha - c_old * s * beta;
+  for (int iter = 0; iter < max_iterations; ++iter) {
+    Av = xt::linalg::dot(A, v);
+
+    T alpha = xt::linalg::dot(v, Av)(0);
+
+    if (iter == 0) {
+      Av = Av - alpha * v;
+    } else {
+      Av = Av - alpha * v - beta_old * v_old;
+    }
+
+    beta_new = xt::linalg::norm(Av);
+
+    if (beta_new < tolerance) {
+      xt::xarray<T> w_new = (v - (s_old * beta_old) * w_old) / c;
+      x = x + (eta / c) * w_new;
+      return x;
+    }
+
+    T rho0 = c_old * alpha - c * s_old * beta_old;
     T rho1 = std::sqrt(rho0 * rho0 + beta_new * beta_new);
-    T rho2 = s * alpha + c_old * c * beta;
-    T rho3 = s_old * beta;
+    T rho2 = s_old * alpha + c * c_old * beta_old;
+    T rho3 = s * beta_old;
 
     c_old = c;
     s_old = s;
+
     c = rho0 / rho1;
     s = beta_new / rho1;
 
-    xt::xarray<T> w_new = (v - rho2 * w - rho3 * w_old) / rho1;
+    xt::xarray<T> w_new;
+    if (iter == 0) {
+      w_new = v / rho1;
+    } else {
+      w_new = (v - rho2 * w - rho3 * w_old) / rho1;
+    }
+
     x = x + c * eta * w_new;
+
     eta = -s * eta;
 
     T relative_error = std::abs(eta) / norm_b;
@@ -150,11 +177,12 @@ inline xt::xarray<T> minres_solver(xt::xarray<T> &A, xt::xarray<T> &b,
     }
 
     v_old = v;
-    v = v_new / beta_new;
+    v = Av / beta_new;
+
     w_old = w;
     w = w_new;
-    beta_old = beta;
-    beta = beta_new;
+
+    beta_old = beta_new;
   }
 
   return x;
