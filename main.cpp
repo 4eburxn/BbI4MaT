@@ -18,17 +18,34 @@
 #include <xtensor/views/xslice.hpp>
 #include <xtensor/views/xview.hpp>
 
-namespace bm = boost::math::differentiation;
-template <typename T> T quadratic_function(T x) { return x * x - 4.0; }
-template <typename T> T cubic_function(T x) {
-  return x * x * x - 2.0 * x - 5.0;
-}
-template <typename T> T cos_function(T x) { return cos(x) - x; }
-
 int main(int argc, char *argv[]) {
 
+  auto f1 = [](double x) { return x * x - 2.0; };
+  double root1 = bisection(f1, 0.0, 2.0);
+  std::cout << "Bisection x * x - 2.0;  x = " << root1 << std::endl;
+
+  double root2 = newton(f1, 1.0);
+  std::cout << "Newton x * x - 2.0;  x = " << root2 << std::endl;
+
+  auto phi = [](double x) { return std::cos(x); };
+  double root3 = simple_iteration(phi, 0.5);
+  std::cout << "Simple iteration cos(x)=x;  x = " << root3 << std::endl;
+
+  // f1(x,y) = x^2 + y^2 - 4
+  // f2(x,y) = exp(x) + y - 1
+  std::vector<std::function<double(const xt::xarray<double> &)>> F2 = {
+      [](const xt::xarray<double> &v) {
+        return v[0] * v[0] + v[1] * v[1] - 4.0;
+      },
+      [](const xt::xarray<double> &v) { return std::exp(v[0]) + v[1] - 1.0; }};
+
+  xt::xarray<double> x02 = {1.0, 1.0};
+  xt::xarray<double> root4 = newton_multidimensional(F2, x02);
+  std::cout << "Multidimensional Newton root: " << root4 << std::endl;
+
   return 0;
-#if 1
+
+#if 0
   std::cout << "\n1. Решение уравнения x^2 - 4 = 0:" << std::endl;
   double root1 = newton_method_autodiff(
       quadratic_function<decltype(bm::make_fvar<double, 1>(0))>, 3.0);

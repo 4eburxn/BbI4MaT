@@ -1,55 +1,131 @@
 #ifndef __NLSOLVER_HPP__
 #define __NLSOLVER_HPP__
 
-#include <boost/math/differentiation/autodiff.hpp>
 #include <cmath>
 #include <functional>
-#include <iomanip>
 #include <iostream>
-#undef DEBUG
-namespace bm = boost::math::differentiation;
-template <typename Function>
-double newton_method_autodiff(Function f, double x0, double tolerance = 1e-10,
-                              int max_iterations = 100) {
+#include <stdexcept>
+#include <vector>
+#include <xtensor-blas/xlinalg.hpp>
+#include <xtensor/containers/xarray.hpp>
+
+double bisection(std::function<double(double)> f, double a, double b,
+                 double eps = 1e-6, int max_iter = 100) {
+  for (int i = 0; i < max_iter; ++i) {
+    double c = (a + b) / 2.0;
+    if (std::abs(b - a) < eps || std::abs(f(c)) < 1e-12) {
+      return c;
+    }
+    if (f(a) * f(c) < 0) {
+      b = c;
+    } else {
+      a = c;
+    }
+  }
+  return (a + b) / 2.0;
+}
+
+double newton(std::function<double(double)> f, double x0, double eps = 1e-6,
+              int max_iter = 100) {
+  double h = 1e-5;
   double x = x0;
 
-#ifdef DEBUG
-  std::cout << "Начальное приближение: x0 = " << x0 << std::endl;
-  std::cout << std::setw(3) << "k" << std::setw(15) << "x_k" << std::setw(15)
-            << "f(x_k)" << std::setw(15) << "f'(x_k)" << std::setw(15)
-            << "|x_k - x_{k-1}|" << std::endl;
-  std::cout << std::string(63, '-') << std::endl;
-#endif // DEBUG
+  for (int i = 0; i < max_iter; ++i) {
+    double fx = f(x);
+    double df = (f(x + h) - f(x - h)) / (2.0 * h);
 
-  for (int k = 0; k < max_iterations; ++k) {
-    auto x_auto = bm::make_fvar<double, 1>(x);
-
-    auto result = f(x_auto);
-    double fx = result.derivative(0);
-    double fpx = result.derivative(1);
-
-    if (std::abs(fpx) < 1e-15) {
+    if (std::abs(df) < 1e-12) {
       break;
     }
 
-    double x_new = x - fx / fpx;
-    double dx = std::abs(x_new - x);
+    double x_new = x - fx / df;
 
-#ifdef DEBUG
-    std::cout << std::setw(3) << k << std::setw(15) << x << std::setw(15) << fx
-              << std::setw(15) << fpx << std::setw(15) << dx << std::endl;
-#endif
-    if (dx < tolerance && std::abs(fx) < tolerance) {
+    if (std::abs(x_new - x) < eps) {
+      return x_new;
+    }
+    x = x_new;
+  }
+  return x;
+}
+
+xt::xarray<double> newton_multidimensional(
+    const std::vector<std::function<double(const xt::xarray<double> &)>> &F,
+    const xt::xarray<double> &x0, double eps = 1e-6, int max_iter = 100) {
+
+  int n = x0.size();
+  xt::xarray<double> x = x0;
+  double h = 1e-5;
+
+  for (int iter = 0; iter < max_iter; ++iter) {
+    xt::xarray<double> Fx = xt::zeros<double>({n});
+    for (int i = 0; i < n; ++i) {
+      Fx[i] = F[i](x);
+    }
+
+    xt::xarray<double> J = xt::zeros<double>({n, n});
+
+    for (int j = 0; j < n; ++j) {
+      xt::xarray<double> dx = xt::zeros<double>(x.shape());
+      dx[j] = h;
+
+      xt::xarray<double> F_forward = xt::zeros<double>({n});
+      xt::xarray<double> F_backward = xt::zeros<double>({n});
+
+      for (int i = 0; i < n; ++i) {
+        F_forward[i] = F[i](x + dx);
+        F_backward[i] = F[i](x - dx);
+      }
+
+      xt::view(J, xt::all(), j) = (F_forward - F_backward) / (2.0 * h);
+    }
+
+    double cond = xt::linalg::cond(J, 2.);
+    if (cond > 1e12) {
+      std::cout << "Warning: Ill-conditioned Jacobian (cond = " << cond << ")"
+                << std::endl;
+      break;
+    }
+
+    xt::xarray<double> delta = xt::linalg::solve(J, -Fx);
+    xt::xarray<double> x_new = x + delta;
+
+    double norm = xt::linalg::norm(delta, 2);
+    if (norm < eps) {
       return x_new;
     }
 
     x = x_new;
   }
 
-#ifdef DEBUG
-  std::cout << "Достигнуто максимальное количество итераций" << std::endl;
-#endif
   return x;
+}
+
+double simple_iteration(std::function<double(double)> phi, double x0,
+                        double eps = 1e-6, int max_iter = 100) {
+  double x = x0;
+  double h = 1e-5;
+
+  for (int i = 0; i < max_iter; ++i) {
+    double derivative = (phi(x + h) - phi(x - h)) / (2.0 * h);
+    if (std::abs(derivative) > 1.0) {
+      std::cout << "simple_iteration: does not converge" << std::endl;
+      break;
+    }
+
+    double x_new = phi(x);
+    if (std::abs(x_new - x) < eps) {
+      return x_new;
+    }
+    x = x_new;
+  }
+
+  return x;
+}
+
+// вспомогательная функция для создания многомерных функций
+template <typename... Args>
+auto make_function(std::function<double(Args...)> f) {
+  return [f](const xt::xarray<double> &x) -> double { return f(x[0]); };
 }
 
 #endif // !__NLSOLVER_HPP__
